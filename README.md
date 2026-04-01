@@ -1,120 +1,94 @@
-# Corporate AI Assistant Platform
+# Kurumsal AI Asistan
 
-<div align="center">
+PDF, TXT ve LOG dosyalarınızı yükleyip bu dokümanlar üzerinden yapay zeka ile sohbet edebildiğiniz bir platformdur. Yüklediğiniz dosyalar otomatik olarak parçalanır, vektör veritabanına kaydedilir ve siz soru sorduğunuzda ilgili bölümler bulunup GPT modeline bağlam olarak verilir. Bu sayede yapay zeka genel bilgi yerine sizin dokümanlarınıza dayalı cevap üretir. Buna RAG (Retrieval-Augmented Generation) denir.
 
-![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge&logo=fastapi&logoColor=white)
-![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-412991?style=for-the-badge&logo=openai&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+Her kullanıcının kendi hesabı, kendi dokümanları ve kendi sohbet geçmişi vardır. Cevaplar ChatGPT'deki gibi anlık akış (streaming) şeklinde gelir ve her cevabın hangi dokümanın hangi sayfasından alındığı gösterilir.
 
-**Production-ready RAG-based AI Assistant that lets you chat with your documents using LLMs.**
+## Ne yapabilirsiniz?
 
-[Features](#features) · [Architecture](#architecture) · [Quick Start](#quick-start) · [API Reference](#api-reference) · [Docker](#docker-deployment)
+- PDF, TXT veya LOG dosyası yükleyebilirsiniz (maks 50MB)
+- Yüklenen dosyalar otomatik olarak işlenir: metin çıkarılır, parçalara ayrılır, embedding vektörleri oluşturulur
+- Sohbet sayfasından dokümanlarınız hakkında sorular sorabilirsiniz
+- GPT-3.5 Turbo, GPT-4 veya GPT-4 Turbo arasında model değiştirebilirsiniz
+- Her cevabın altında kaynak doküman ve sayfa bilgisini görebilirsiniz
+- Birden fazla sohbet oturumu açıp yönetebilirsiniz
 
-</div>
+## Kullanılan Teknolojiler
 
----
+**Backend:**
+- Python 3.11 ve FastAPI — async API sunucusu
+- SQLAlchemy (async) + SQLite — veritabanı
+- PyMuPDF — PDF'lerden metin çıkarma
+- OpenAI API — embedding oluşturma ve GPT ile cevap üretme
+- FAISS (Facebook AI Similarity Search) — vektör benzerlik araması
+- JWT + bcrypt — kullanıcı kimlik doğrulama
+- WebSocket — gerçek zamanlı streaming chat
 
-## Features
+**Frontend:**
+- React 18 + Vite 5 — hızlı geliştirme ve build
+- TailwindCSS — stil ve tasarım
+- Zustand — state yönetimi
+- React Router — sayfa yönlendirme
+- Axios — HTTP istekleri
 
-| Feature | Description |
-|---------|-------------|
-| **Document Upload** | Upload PDF, TXT, LOG files — auto-parsed, chunked & embedded |
-| **RAG Pipeline** | Semantic search over your documents with context-aware answers |
-| **Real-time Chat** | ChatGPT-like streaming via WebSocket |
-| **Source Citations** | See exactly which document/page each answer comes from |
-| **Multi-user** | JWT auth with per-user isolated documents & chat history |
-| **Model Switching** | Switch between GPT-3.5 Turbo, GPT-4, GPT-4 Turbo on the fly |
-| **Docker Ready** | One command deploy with docker-compose |
+**DevOps:**
+- Docker + docker-compose — konteynerize deployment
+- Nginx — frontend sunucu (production)
 
-## Architecture
+## Sistem Nasıl Çalışıyor?
 
-```
-┌──────────────────┐     ┌──────────────────────────────────────────────────┐
-│                  │     │                   Backend (FastAPI)              │
-│   React/Vite     │     │                                                  │
-│   Frontend       │────▶│  API Layer ──▶ Service Layer ──▶ AI Pipeline     │
-│                  │HTTP │  (REST+WS)     (Business)        │               │
-│  - TailwindCSS   │     │                                  ├── Embeddings  │
-│  - Zustand       │ WS  │  Auth (JWT)    Repository        │   (OpenAI)    │
-│  - React Query   │────▶│  Middleware     (SQLAlchemy)      ├── VectorDB   │
-│                  │     │                                  │   (FAISS)     │
-└──────────────────┘     │                 SQLite DB         └── LLM        │
-                         │                                      (OpenAI)    │
-                         └──────────────────────────────────────────────────┘
-```
+1. Kullanıcı bir PDF yükler
+2. Backend dosyayı okur, metni çıkarır ve 1000 karakterlik parçalara böler
+3. Her parça OpenAI embedding API'sine gönderilip vektöre dönüştürülür
+4. Vektörler FAISS indeksine kaydedilir
+5. Kullanıcı sohbette soru sorduğunda, soru da vektöre dönüştürülür
+6. FAISS'te en benzer 5 parça bulunur
+7. Bu parçalar + soru birlikte GPT'ye gönderilir
+8. GPT, doküman bağlamına dayalı cevap üretir ve WebSocket ile anlık olarak kullanıcıya iletilir
 
-### How RAG Works
+## Kurulum
 
-```
-User Question
-     │
-     ▼
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
-│  Embed the  │───▶│  Search in   │───▶│  Build      │───▶│  Stream LLM  │
-│  Question   │    │  FAISS Index │    │  Prompt +   │    │  Response    │
-│  (OpenAI)   │    │  (Top-K)     │    │  Context    │    │  (GPT-4)     │
-└─────────────┘    └──────────────┘    └─────────────┘    └──────────────┘
-```
+### Gereksinimler
 
-## Tech Stack
+- Python 3.11 veya üzeri
+- Node.js 20 veya üzeri
+- Bir OpenAI API key'i (https://platform.openai.com/api-keys adresinden alabilirsiniz, bakiye yüklemeniz gerekir)
 
-| Layer | Technology |
-|-------|-----------|
-| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Pydantic v2 |
-| **Frontend** | React 18, Vite 5, TailwindCSS, Zustand, React Router |
-| **AI/ML** | OpenAI GPT-3.5/4, text-embedding-ada-002, FAISS |
-| **Database** | SQLite (async via aiosqlite) |
-| **Auth** | JWT (python-jose), bcrypt |
-| **Real-time** | WebSocket (native FastAPI) |
-| **PDF Parsing** | PyMuPDF (fitz) |
-| **DevOps** | Docker, docker-compose, Nginx |
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Node.js 20+
-- OpenAI API Key ([get one here](https://platform.openai.com/api-keys))
-
-### 1. Clone & Configure
+### 1. Projeyi klonlayın
 
 ```bash
 git clone https://github.com/furkanbaskurthub-lgtm/corporate-ai-assistant.git
 cd corporate-ai-assistant
+```
 
-# Copy and edit environment variables
+### 2. Backend ortam değişkenlerini ayarlayın
+
+```bash
 cp .env.example backend/.env
 ```
 
-Edit `backend/.env` and set your **OPENAI_API_KEY**:
+`backend/.env` dosyasını açıp `OPENAI_API_KEY` satırına kendi API anahtarınızı yazın. `SECRET_KEY` için rastgele bir değer üretebilirsiniz:
 
-```env
-OPENAI_API_KEY="sk-proj-your-actual-key-here"
-SECRET_KEY="generate-a-random-secret-key"
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
 ```
 
-> **Tip:** Generate a secret key with: `python -c "import secrets; print(secrets.token_hex(32))"`
-
-### 2. Start Backend
+### 3. Backend'i başlatın
 
 ```bash
 cd backend
 python -m venv venv
-
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-# source venv/bin/activate
-
+venv\Scripts\activate          # Windows
+# source venv/bin/activate     # Linux/Mac
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-### 3. Start Frontend
+Backend açıldığında http://localhost:8000/docs adresinden API dokümantasyonunu görebilirsiniz.
+
+### 4. Frontend'i başlatın
+
+Yeni bir terminal açın:
 
 ```bash
 cd frontend
@@ -122,157 +96,89 @@ npm install
 npm run dev
 ```
 
-### 4. Open in Browser
+Tarayıcıda http://localhost:5173 adresine gidin.
 
-| Service | URL |
-|---------|-----|
-| **Frontend** | http://localhost:5173 |
-| **API Docs** | http://localhost:8000/docs |
-| **Health Check** | http://localhost:8000/health |
+### 5. Kullanmaya başlayın
 
-## Docker Deployment
+1. Kayıt olun (Register sayfası)
+2. Giriş yapın
+3. Dokümanlar sayfasından PDF/TXT/LOG dosyası yükleyin
+4. Dosya işlenene kadar bekleyin (durum "Hazır" olacak)
+5. Sohbet sayfasına geçin ve dokümanınız hakkında soru sorun
+
+## Docker ile Çalıştırma
+
+Eğer Docker kuruluysa tek komutla her şeyi ayağa kaldırabilirsiniz:
 
 ```bash
-# Build and start all services
 docker-compose up --build
-
-# Or run in background
-docker-compose up -d --build
 ```
 
-| Service | URL |
-|---------|-----|
-| **Frontend** | http://localhost |
-| **Backend API** | http://localhost:8000 |
+Frontend http://localhost adresinde, backend http://localhost:8000 adresinde çalışacaktır.
 
-## Project Structure
+## Proje Klasör Yapısı
 
 ```
 corporate-ai-assistant/
-│
 ├── backend/
 │   ├── app/
-│   │   ├── api/
-│   │   │   └── v1/
-│   │   │       ├── auth.py           # Register, Login, Me
-│   │   │       ├── chat.py           # Sessions, Messages, WebSocket
-│   │   │       ├── documents.py      # Upload, List, Delete
-│   │   │       └── users.py          # Stats, Models
-│   │   ├── ai/
-│   │   │   ├── document_processor.py # PDF/TXT parsing & chunking
-│   │   │   ├── embeddings.py         # OpenAI embedding manager
-│   │   │   ├── rag_pipeline.py       # Query → Retrieve → Generate
-│   │   │   └── vector_store.py       # FAISS index management
-│   │   ├── core/
-│   │   │   ├── config.py             # Pydantic Settings
-│   │   │   ├── security.py           # JWT + bcrypt
-│   │   │   └── logging_config.py     # Structured logging
-│   │   ├── db/
-│   │   │   ├── database.py           # Async SQLAlchemy engine
-│   │   │   └── repositories/         # Data access layer
-│   │   ├── models/                   # SQLAlchemy ORM models
-│   │   ├── schemas/                  # Pydantic request/response
-│   │   ├── services/                 # Business logic layer
-│   │   └── main.py                   # FastAPI app entry point
-│   ├── requirements.txt
+│   │   ├── api/v1/              # API endpoint'leri (auth, chat, documents, users)
+│   │   ├── ai/                  # RAG pipeline, embedding, FAISS, doküman işleme
+│   │   ├── core/                # Config, JWT güvenlik, loglama
+│   │   ├── db/                  # Veritabanı bağlantısı ve repository katmanı
+│   │   ├── models/              # SQLAlchemy veritabanı modelleri
+│   │   ├── schemas/             # Pydantic istek/yanıt şemaları
+│   │   ├── services/            # İş mantığı katmanı
+│   │   └── main.py              # FastAPI uygulaması giriş noktası
+│   ├── requirements.txt         # Python bağımlılıkları
 │   └── Dockerfile
-│
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── Auth/                 # LoginForm, RegisterForm
-│   │   │   ├── Chat/                 # ChatWindow, MessageList, Input
-│   │   │   ├── Documents/            # Upload, DocumentList
-│   │   │   └── Layout/               # Sidebar, Header
-│   │   ├── pages/                    # Route pages
-│   │   ├── hooks/                    # useAuth, useDocuments
-│   │   ├── services/                 # API & WebSocket clients
-│   │   └── stores/                   # Zustand state management
+│   │   ├── components/          # React bileşenleri (Auth, Chat, Documents, Layout)
+│   │   ├── pages/               # Sayfa bileşenleri
+│   │   ├── hooks/               # Custom hook'lar (useAuth, useDocuments)
+│   │   ├── services/            # API ve WebSocket istemcileri
+│   │   └── stores/              # Zustand state yönetimi
 │   ├── package.json
-│   ├── tailwind.config.js
-│   ├── vite.config.js
 │   └── Dockerfile
-│
 ├── docker-compose.yml
-├── .env.example
+├── .env.example                 # Ortam değişkenleri şablonu
 ├── .gitignore
 └── README.md
 ```
 
-## API Reference
+## API Endpoint'leri
 
-### Authentication
+**Kimlik Doğrulama:**
+- `POST /api/v1/auth/register` — Yeni kullanıcı kaydı
+- `POST /api/v1/auth/login` — Giriş yapma (JWT token döner)
+- `GET /api/v1/auth/me` — Giriş yapan kullanıcının bilgileri
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/auth/register` | Register new user |
-| `POST` | `/api/v1/auth/login` | Login (returns JWT) |
-| `GET` | `/api/v1/auth/me` | Get current user info |
+**Doküman Yönetimi:**
+- `POST /api/v1/documents/upload` — Dosya yükleme
+- `GET /api/v1/documents/` — Kullanıcının doküman listesi
+- `DELETE /api/v1/documents/{id}` — Doküman silme
 
-### Documents
+**Sohbet:**
+- `POST /api/v1/chat/sessions` — Yeni sohbet oturumu oluşturma
+- `GET /api/v1/chat/sessions` — Oturum listesi
+- `GET /api/v1/chat/sessions/{id}/messages` — Mesaj geçmişi
+- `DELETE /api/v1/chat/sessions/{id}` — Oturum silme
+- `WS /api/v1/chat/ws/{session_id}?token=JWT` — Gerçek zamanlı streaming sohbet
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/documents/upload` | Upload a document (multipart) |
-| `GET` | `/api/v1/documents/` | List user's documents |
-| `DELETE` | `/api/v1/documents/{id}` | Delete a document |
+## Ortam Değişkenleri
 
-### Chat
+`backend/.env` dosyasında ayarlanması gereken değerler:
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/api/v1/chat/sessions` | Create chat session |
-| `GET` | `/api/v1/chat/sessions` | List chat sessions |
-| `GET` | `/api/v1/chat/sessions/{id}/messages` | Get message history |
-| `DELETE` | `/api/v1/chat/sessions/{id}` | Delete a session |
-| `WS` | `/api/v1/chat/ws/{session_id}?token=JWT` | Real-time streaming chat |
+- `OPENAI_API_KEY` — OpenAI API anahtarınız (zorunlu)
+- `SECRET_KEY` — JWT token imzalama anahtarı
+- `DATABASE_URL` — Veritabanı bağlantı adresi (varsayılan: SQLite)
+- `OPENAI_MODEL` — Kullanılacak GPT modeli (varsayılan: gpt-3.5-turbo)
+- `CHUNK_SIZE` — Doküman parça boyutu (varsayılan: 1000 karakter)
+- `TOP_K_RESULTS` — Aramada dönen parça sayısı (varsayılan: 5)
+- `MAX_FILE_SIZE` — Maksimum dosya boyutu (varsayılan: 50MB)
+- `DEBUG` — true yaparsanız /docs endpoint'i aktif olur
 
-### Users
+## Lisans
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/api/v1/users/stats` | User statistics |
-| `GET` | `/api/v1/users/models` | Available AI models |
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | **Required.** Your OpenAI API key | — |
-| `SECRET_KEY` | JWT signing secret | `change-this...` |
-| `DATABASE_URL` | SQLAlchemy DB connection | `sqlite+aiosqlite:///./ai_assistant.db` |
-| `OPENAI_MODEL` | Default LLM model | `gpt-3.5-turbo` |
-| `OPENAI_EMBEDDING_MODEL` | Embedding model | `text-embedding-ada-002` |
-| `CHUNK_SIZE` | Document chunk size (chars) | `1000` |
-| `CHUNK_OVERLAP` | Overlap between chunks | `200` |
-| `TOP_K_RESULTS` | Number of context chunks | `5` |
-| `MAX_FILE_SIZE` | Max upload size (bytes) | `52428800` (50MB) |
-| `DEBUG` | Enable /docs endpoint | `true` |
-
-## Usage Guide
-
-1. **Register** — Create an account at the login page
-2. **Upload Documents** — Go to Documents page, drag & drop PDF/TXT/LOG files
-3. **Wait for Processing** — Files are parsed, chunked, and embedded automatically
-4. **Start Chatting** — Open a new chat session and ask questions about your documents
-5. **View Sources** — Each AI response shows which document/page the information came from
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-<div align="center">
-
-**Built with FastAPI + React + OpenAI + FAISS**
-
-</div>
+MIT
